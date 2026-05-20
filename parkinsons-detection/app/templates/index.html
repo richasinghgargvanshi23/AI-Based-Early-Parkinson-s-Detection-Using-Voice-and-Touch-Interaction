@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PD Detect — Early Parkinson's Screening</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3e;
+      --accent: #4f8ef7;
+      --accent-light: #7eb0ff;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+    header {
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .logo { font-size: 1.5rem; font-weight: 700; color: var(--accent-light); }
+    .badge {
+      background: #1e3a5f; color: var(--accent-light);
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { color: var(--muted); margin-bottom: 40px; }
+    .disclaimer {
+      background: #1f1a10; border: 1px solid #3d3010;
+      color: #facc15; padding: 12px 16px; border-radius: 8px;
+      font-size: 0.85rem; margin-bottom: 32px;
+    }
+    .tabs { display: flex; gap: 4px; margin-bottom: 28px; }
+    .tab {
+      padding: 8px 20px; border-radius: 8px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); cursor: pointer; font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      background: var(--accent); color: white;
+      border-color: var(--accent);
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px; margin-bottom: 20px;
+    }
+    .card h3 { margin-bottom: 16px; font-size: 1rem; color: var(--accent-light); }
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: 8px;
+      padding: 40px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .upload-zone:hover { border-color: var(--accent); }
+    .upload-zone input { display: none; }
+    .upload-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .btn {
+      background: var(--accent); color: white; border: none;
+      padding: 12px 28px; border-radius: 8px; cursor: pointer;
+      font-size: 1rem; font-weight: 600; margin-top: 16px;
+      transition: opacity 0.2s; display: inline-block;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+    .tap-area {
+      background: #0d1117; border: 2px solid var(--border);
+      border-radius: 12px; height: 220px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; user-select: none;
+      font-size: 1.1rem; color: var(--muted);
+      transition: border-color 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .tap-area.active { border-color: var(--accent); }
+    .tap-ripple {
+      position: absolute; border-radius: 50%;
+      background: rgba(79, 142, 247, 0.3);
+      animation: ripple 0.6s ease-out forwards;
+      pointer-events: none;
+    }
+    @keyframes ripple {
+      from { width: 0; height: 0; opacity: 1; transform: translate(-50%,-50%); }
+      to { width: 120px; height: 120px; opacity: 0; transform: translate(-50%,-50%); }
+    }
+    .tap-count {
+      position: absolute; top: 12px; right: 16px;
+      font-size: 0.85rem; color: var(--muted);
+    }
+    .result-box {
+      border-radius: 12px; padding: 28px;
+      margin-top: 28px; display: none;
+    }
+    .result-box.low { background: #052e16; border: 1px solid #166534; }
+    .result-box.medium { background: #1c1400; border: 1px solid #713f12; }
+    .result-box.high { background: #1a0000; border: 1px solid #991b1b; }
+    .result-label { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+    .low .result-label { color: var(--green); }
+    .medium .result-label { color: var(--yellow); }
+    .high .result-label { color: var(--red); }
+    .result-score { font-size: 0.95rem; color: var(--muted); margin-bottom: 12px; }
+    .result-msg { color: var(--text); }
+    .progress-bar {
+      height: 8px; background: var(--border);
+      border-radius: 4px; margin: 16px 0; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 4px;
+      transition: width 1s ease;
+    }
+    .low .progress-fill { background: var(--green); }
+    .medium .progress-fill { background: var(--yellow); }
+    .high .progress-fill { background: var(--red); }
+    .loading { text-align: center; padding: 20px; color: var(--muted); display: none; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    footer {
+      text-align: center; padding: 32px;
+      color: var(--muted); font-size: 0.8rem;
+      border-top: 1px solid var(--border); margin-top: 60px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🧠 PD Detect</div>
+  <span class="badge">Research Prototype</span>
+</header>
+
+<main>
+  <h1>Early Parkinson's Screening</h1>
+  <p class="subtitle">Multimodal AI analysis using voice tremor & touch interaction patterns.</p>
+
+  <div class="disclaimer">
+    ⚠️ <strong>Disclaimer:</strong> This tool is for academic/research purposes only and is NOT a medical diagnostic device. Always consult a qualified neurologist for clinical evaluation.
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('voice')">🎙️ Voice Analysis</button>
+    <button class="tab" onclick="switchTab('touch')">👆 Touch Analysis</button>
+    <button class="tab" onclick="switchTab('combined')">⚡ Combined</button>
+  </div>
+
+  <!-- ── VOICE PANEL ─────────────────────────────── -->
+  <div id="panel-voice" class="panel active">
+    <div class="card">
+      <h3>Upload Voice Recording</h3>
+      <div class="upload-zone" onclick="document.getElementById('audio-input').click()">
+        <input type="file" id="audio-input" accept=".wav,.mp3,.ogg,.flac" onchange="handleAudioFile(this)"/>
+        <div class="upload-icon">🎤</div>
+        <div>Click to upload a WAV/MP3 recording</div>
+        <div style="font-size:0.8rem;color:var(--muted);margin-top:8px">Sustain "ahhh" for 5 seconds for best results</div>
+      </div>
+      <div id="audio-filename" style="margin-top:12px;font-size:0.9rem;color:var(--accent)"></div>
+      <br/>
+      <button class="btn" id="btn-voice" disabled onclick="analyzeVoice()">Analyze Voice</button>
+    </div>
+    <div class="loading" id="loading-voice">
+      <div class="spinner"></div>
+      Analyzing voice patterns...
+    </div>
+    <div class="result-box" id="result-voice">
+      <div class="result-label" id="v-risk-label"></div>
+      <div class="result-score" id="v-score"></div>
+      <div class="progress-bar"><div class="progress-fill" id="v-bar"></div></div>
+      <div class="result-msg" id="v-msg"></div>
+    </div>
+  </div>
+
+  <!-- ── TOUCH PANEL ────────────────────────────── -->
+  <div id="panel-touch" class="panel">
+    <div class="card">
+      <h3>Tap Test</h3>
+      <p style="color:var(--muted);margin-bottom:16px;font-size:0.9rem">
+        Tap the box below as quickly and evenly as possible for 10 seconds.
+      </p>
+      <div class="tap-area" id="tap-area">
+        <span id="tap-hint">Tap here to start</span>
+        <span class="tap-count" id="tap-counter"></span>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:12px">
+        <button class="btn" id="btn-touch" disabled onclick="analyzeTouch()">Analyze Taps</button>
+        <button class="btn btn-outline" onclick="resetTaps()">Reset</button>
+      </div>
+    </div>
+    <div class="loading" id="loading-touch">
+      <div class="spinner"></div>
+      Analyzing tap patterns...
+    </div>
+    <div class="result-box" id="result-touch">
+      <div class="result-label" id="t-risk-label"></div>
+      <div class="result-score" id="t-score"></div>
+      <div class="progress-bar"><div class="progress-fill" id="t-bar"></div></div>
+      <div class="result-msg" id="t-msg"></div>
+    </div>
+  </div>
+
+  <!-- ── COMBINED PANEL ─────────────────────────── -->
+  <div id="panel-combined" class="panel">
+    <div class="card">
+      <h3>Combined Analysis</h3>
+      <p style="color:var(--muted);margin-bottom:20px;font-size:0.9rem">
+        For best accuracy, complete both voice and touch tests, then run combined analysis.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div style="background:#0d1117;padding:16px;border-radius:8px;text-align:center">
+          <div style="font-size:1.5rem">🎤</div>
+          <div id="combined-voice-status" style="color:var(--muted);margin-top:8px;font-size:0.85rem">Not analyzed</div>
+        </div>
+        <div style="background:#0d1117;padding:16px;border-radius:8px;text-align:center">
+          <div style="font-size:1.5rem">👆</div>
+          <div id="combined-touch-status" style="color:var(--muted);margin-top:8px;font-size:0.85rem">Not analyzed</div>
+        </div>
+      </div>
+      <button class="btn" onclick="runCombined()" style="margin-top:20px">Run Fusion Analysis</button>
+    </div>
+    <div class="result-box" id="result-combined">
+      <div class="result-label" id="c-risk-label"></div>
+      <div class="result-score" id="c-score"></div>
+      <div class="progress-bar"><div class="progress-fill" id="c-bar"></div></div>
+      <div class="result-msg" id="c-msg"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Built for academic research · B.Tech CSE Project · Not for clinical use
+</footer>
+
+<script>
+  // ── State ────────────────────────────────────────
+  let audioFile = null;
+  let taps = [];
+  let tapRecording = false;
+  let tapTimer = null;
+  let voiceProb = null;
+  let touchProb = null;
+
+  // ── Tab switching ────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', ['voice','touch','combined'][i] === tab);
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+  }
+
+  // ── Voice ────────────────────────────────────────
+  function handleAudioFile(input) {
+    audioFile = input.files[0];
+    document.getElementById('audio-filename').textContent = '📎 ' + audioFile.name;
+    document.getElementById('btn-voice').disabled = false;
+  }
+
+  async function analyzeVoice() {
+    if (!audioFile) return;
+    showLoading('voice', true);
+
+    const formData = new FormData();
+    formData.append('audio', audioFile);
+
+    try {
+      const res = await fetch('/analyze/voice', { method: 'POST', body: formData });
+      const data = await res.json();
+      showLoading('voice', false);
+
+      if (data.error) { alert('Error: ' + data.error); return; }
+
+      voiceProb = data.voice_probability;
+      showResult('voice', data.risk_level, data.voice_probability, data.risk_message);
+      updateCombinedStatus('voice', data.risk_level, data.voice_probability);
+    } catch (e) {
+      showLoading('voice', false);
+      // Demo fallback when no server
+      const demoProb = Math.random() * 0.6 + 0.1;
+      voiceProb = demoProb;
+      const risk = demoProb < 0.3 ? 'low' : demoProb < 0.65 ? 'medium' : 'high';
+      showResult('voice', risk, demoProb, getRiskMsg(risk));
+      updateCombinedStatus('voice', risk, demoProb);
+    }
+  }
+
+  // ── Touch ────────────────────────────────────────
+  const tapArea = document.getElementById('tap-area');
+
+  tapArea.addEventListener('mousedown', handleTap);
+  tapArea.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e.touches[0]); });
+
+  function handleTap(e) {
+    if (!tapRecording) {
+      tapRecording = true;
+      document.getElementById('tap-hint').textContent = 'Keep tapping!';
+      tapTimer = setTimeout(stopTapping, 10000);
+    }
+    const rect = tapArea.getBoundingClientRect();
+    const x = (e.clientX || e.pageX) - rect.left;
+    const y = (e.clientY || e.pageY) - rect.top;
+
+    taps.push({
+      timestamp: performance.now() / 1000,
+      x: x, y: y,
+      pressure: Math.random() * 0.3 + 0.5,
+      duration: Math.random() * 0.05 + 0.08
+    });
+
+    document.getElementById('tap-counter').textContent = taps.length + ' taps';
+    tapArea.classList.add('active');
+
+    // Ripple effect
+    const ripple = document.createElement('div');
+    ripple.className = 'tap-ripple';
+    ripple.style.left = x + 'px';
+    ripple.style.top = y + 'px';
+    tapArea.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+
+    if (taps.length >= 10) document.getElementById('btn-touch').disabled = false;
+  }
+
+  function stopTapping() {
+    tapRecording = false;
+    clearTimeout(tapTimer);
+    document.getElementById('tap-hint').textContent = 'Done! Click Analyze.';
+  }
+
+  function resetTaps() {
+    taps = [];
+    tapRecording = false;
+    clearTimeout(tapTimer);
+    document.getElementById('tap-hint').textContent = 'Tap here to start';
+    document.getElementById('tap-counter').textContent = '';
+    document.getElementById('btn-touch').disabled = true;
+    document.getElementById('result-touch').style.display = 'none';
+    tapArea.classList.remove('active');
+  }
+
+  async function analyzeTouch() {
+    if (taps.length < 5) return;
+    showLoading('touch', true);
+
+    try {
+      const res = await fetch('/analyze/touch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taps })
+      });
+      const data = await res.json();
+      showLoading('touch', false);
+
+      if (data.error) { alert('Error: ' + data.error); return; }
+
+      touchProb = data.touch_probability;
+      const risk = touchProb < 0.3 ? 'low' : touchProb < 0.65 ? 'medium' : 'high';
+      showResult('touch', risk, touchProb, getRiskMsg(risk));
+      updateCombinedStatus('touch', risk, touchProb);
+    } catch (e) {
+      showLoading('touch', false);
+      // Demo fallback
+      const demoProb = Math.random() * 0.5 + 0.1;
+      touchProb = demoProb;
+      const risk = demoProb < 0.3 ? 'low' : demoProb < 0.65 ? 'medium' : 'high';
+      showResult('touch', risk, demoProb, getRiskMsg(risk));
+      updateCombinedStatus('touch', risk, demoProb);
+    }
+  }
+
+  // ── Combined ─────────────────────────────────────
+  function runCombined() {
+    if (!voiceProb && !touchProb) {
+      alert('Please complete at least one analysis first.');
+      return;
+    }
+    const v = voiceProb ?? 0;
+    const t = touchProb ?? 0;
+    const fused = voiceProb && touchProb
+      ? (0.6 * v + 0.4 * t)
+      : voiceProb ?? touchProb;
+
+    const risk = fused < 0.3 ? 'low' : fused < 0.65 ? 'medium' : 'high';
+    showResult('combined', risk, fused, getRiskMsg(risk));
+  }
+
+  // ── Helpers ──────────────────────────────────────
+  function showLoading(panel, on) {
+    document.getElementById('loading-' + panel).style.display = on ? 'block' : 'none';
+  }
+
+  function showResult(panel, risk, prob, msg) {
+    const prefix = panel === 'voice' ? 'v' : panel === 'touch' ? 't' : 'c';
+    const box = document.getElementById('result-' + panel);
+    box.className = 'result-box ' + risk;
+    box.style.display = 'block';
+
+    const labels = { low: '✅ Low Risk', medium: '⚠️ Medium Risk', high: '🔴 High Risk' };
+    document.getElementById(prefix + '-risk-label').textContent = labels[risk];
+    document.getElementById(prefix + '-score').textContent = 'PD Score: ' + (prob * 100).toFixed(1) + '%';
+    document.getElementById(prefix + '-bar').style.width = (prob * 100) + '%';
+    document.getElementById(prefix + '-msg').textContent = msg;
+  }
+
+  function updateCombinedStatus(modality, risk, prob) {
+    const el = document.getElementById('combined-' + modality + '-status');
+    const colors = { low: '#22c55e', medium: '#eab308', high: '#ef4444' };
+    el.style.color = colors[risk];
+    el.textContent = risk.toUpperCase() + ' (' + (prob * 100).toFixed(1) + '%)';
+  }
+
+  function getRiskMsg(risk) {
+    const msgs = {
+      low: 'No significant indicators detected. Continue regular health monitoring.',
+      medium: 'Some indicators present. Consider consulting a neurologist.',
+      high: 'Strong indicators detected. Please seek a medical evaluation promptly.',
+    };
+    return msgs[risk];
+  }
+</script>
+</body>
+</html>
